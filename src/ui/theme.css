@@ -1,0 +1,34 @@
+@import 'tailwindcss';
+
+@theme {
+  --font-sans: ui-sans-serif, system-ui, -apple-system, 'Segoe UI', sans-serif;
+}
+
+/* Chrome's own tab-group palette, so the swatches in the UI match what the
+   browser will actually render. */
+@theme {
+  --color-tg-grey: #5f6368;
+  --color-tg-blue: #1a73e8;
+  --color-tg-red: #d93025;
+  --color-tg-yellow: #f9ab00;
+  --color-tg-green: #1e8e3e;
+  --color-tg-pink: #d01884;
+  --color-tg-purple: #9334e6;
+  --color-tg-cyan: #007b83;
+  --color-tg-orange: #fa903e;
+}
+
+@layer base {
+  :root {
+    color-scheme: light dark;
+  }
+
+  body {
+    @apply bg-white text-zinc-900 antialiased dark:bg-zinc-950 dark:text-zinc-100;
+  }
+
+  /* Keep focus rings visible for keyboard users without boxing every click. */
+  :focus-visible {
+    @apply outline-2 outline-offset-2 outline-indigo-500;
+  }
+}

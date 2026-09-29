@@ -1,0 +1,7 @@
+i want to create a github extention to organise the tab .
+it should be made such that anyone can use it for anythign and the way they want to organise 
+it should have the option to add the prifix url of the thigns they want to add in that group and things related to that will be organised in that all the submitted url other kind of things will be stored locally in the localstorage or some kind of db in the broswer . 
+it should have minimal ui and can use the some standard ui liberary . 
+how it should work is whenever we open a tab if it is in the group it should be auto added in that group . 
+make some already template or group to help the users like ... social midea , entertainment , work , and other 
+when user is doing it for the first time it should have option to run organiser so that it can organise the already existing tabs too . 

@@ -1,0 +1,31 @@
+{
+  "manifest_version": 3,
+  "name": "Tab Organiser",
+  "version": "1.0.0",
+  "description": "Sort your tabs into groups with your own URL rules. Everything stays in your browser.",
+  "minimum_chrome_version": "120",
+  "permissions": ["tabs", "tabGroups", "storage"],
+  "background": {
+    "service_worker": "service-worker.js"
+  },
+  "action": {
+    "default_title": "Tab Organiser",
+    "default_popup": "popup/index.html",
+    "default_icon": {
+      "16": "icons/icon16.png",
+      "32": "icons/icon32.png",
+      "48": "icons/icon48.png",
+      "128": "icons/icon128.png"
+    }
+  },
+  "options_ui": {
+    "page": "options/index.html",
+    "open_in_tab": true
+  },
+  "icons": {
+    "16": "icons/icon16.png",
+    "32": "icons/icon32.png",
+    "48": "icons/icon48.png",
+    "128": "icons/icon128.png"
+  }
+}
