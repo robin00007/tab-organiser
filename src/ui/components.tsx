@@ -137,4 +137,7 @@ export function ColorPicker({
   )
 }
 
+/** "1 tab" / "2 tabs" — the only pluralisation the UI needs. */
+export const plural = (count: number, noun: string) => `${count} ${noun}${count === 1 ? '' : 's'}`
+
 export { cx }

@@ -5,8 +5,9 @@ import { sendMessage } from '../lib/messages.ts'
 import type { Summary } from '../lib/organizer.ts'
 import { makeRule } from '../lib/storage.ts'
 import type { Config, Scope } from '../lib/types.ts'
-import { Button, ColorDot, IconButton, Select, Toggle, cx } from '../ui/components.tsx'
+import { Button, ColorDot, IconButton, Select, Toggle, cx, plural } from '../ui/components.tsx'
 import { useConfig } from '../ui/useConfig.ts'
+import { TabSearch } from './TabSearch.tsx'
 
 const SCOPES: { value: Scope; label: string }[] = [
   { value: 'currentWindow', label: 'This window' },
@@ -94,109 +95,111 @@ export function Popup() {
         </IconButton>
       </header>
 
-      <section className="px-3 py-3">
-        <Toggle
-          checked={config.settings.autoOrganize}
-          onChange={(autoOrganize) =>
-            update((previous) => ({ ...previous, settings: { ...previous.settings, autoOrganize } }))
-          }
-          label="Auto-organise new tabs"
-          description="Group tabs the moment they load"
-        />
-      </section>
-
-      {host ? (
+      <TabSearch>
         <section className="px-3 py-3">
-          <p className="mb-2 truncate text-xs text-zinc-500 dark:text-zinc-400">
-            This tab &middot; <span className="font-medium text-zinc-700 dark:text-zinc-200">{host}</span>
-          </p>
-          {matchedGroup ? (
-            <p className="flex items-center gap-1.5 text-xs">
-              <Check className="size-3.5 text-green-600 dark:text-green-400" />
-              Goes to
-              <span className="inline-flex items-center gap-1 font-medium">
-                <ColorDot color={matchedGroup.color} />
-                {matchedGroup.name}
-              </span>
-            </p>
-          ) : (
-            <QuickAdd groups={config.groups} onAdd={addHostToGroup} />
-          )}
+          <Toggle
+            checked={config.settings.autoOrganize}
+            onChange={(autoOrganize) =>
+              update((previous) => ({ ...previous, settings: { ...previous.settings, autoOrganize } }))
+            }
+            label="Auto-organise new tabs"
+            description="Group tabs the moment they load"
+          />
         </section>
-      ) : null}
 
-      <section className="space-y-2 px-3 py-3">
-        <div className="flex items-center justify-between">
-          <span className="text-xs font-medium text-zinc-500 dark:text-zinc-400">
-            {summary ? `${summary.total} organisable tabs` : 'Counting…'}
-          </span>
-          <div className="flex rounded-md bg-zinc-100 p-0.5 dark:bg-zinc-800">
-            {SCOPES.map((option) => (
-              <button
-                key={option.value}
-                type="button"
-                onClick={() =>
-                  update((previous) => ({
-                    ...previous,
-                    settings: { ...previous.settings, scope: option.value },
-                  }))
-                }
-                className={cx(
-                  'rounded px-2 py-0.5 text-[11px] font-medium transition-colors',
-                  scope === option.value
-                    ? 'bg-white text-zinc-900 shadow-sm dark:bg-zinc-950 dark:text-zinc-100'
-                    : 'text-zinc-500 dark:text-zinc-400',
-                )}
-              >
-                {option.label}
-              </button>
-            ))}
+        {host ? (
+          <section className="px-3 py-3">
+            <p className="mb-2 truncate text-xs text-zinc-500 dark:text-zinc-400">
+              This tab &middot; <span className="font-medium text-zinc-700 dark:text-zinc-200">{host}</span>
+            </p>
+            {matchedGroup ? (
+              <p className="flex items-center gap-1.5 text-xs">
+                <Check className="size-3.5 text-green-600 dark:text-green-400" />
+                Goes to
+                <span className="inline-flex items-center gap-1 font-medium">
+                  <ColorDot color={matchedGroup.color} />
+                  {matchedGroup.name}
+                </span>
+              </p>
+            ) : (
+              <QuickAdd groups={config.groups} onAdd={addHostToGroup} />
+            )}
+          </section>
+        ) : null}
+
+        <section className="space-y-2 px-3 py-3">
+          <div className="flex items-center justify-between">
+            <span className="text-xs font-medium text-zinc-500 dark:text-zinc-400">
+              {summary ? `${summary.total} organisable tabs` : 'Counting…'}
+            </span>
+            <div className="flex rounded-md bg-zinc-100 p-0.5 dark:bg-zinc-800">
+              {SCOPES.map((option) => (
+                <button
+                  key={option.value}
+                  type="button"
+                  onClick={() =>
+                    update((previous) => ({
+                      ...previous,
+                      settings: { ...previous.settings, scope: option.value },
+                    }))
+                  }
+                  className={cx(
+                    'rounded px-2 py-0.5 text-[11px] font-medium transition-colors',
+                    scope === option.value
+                      ? 'bg-white text-zinc-900 shadow-sm dark:bg-zinc-950 dark:text-zinc-100'
+                      : 'text-zinc-500 dark:text-zinc-400',
+                  )}
+                >
+                  {option.label}
+                </button>
+              ))}
+            </div>
           </div>
-        </div>
 
-        <ul className="max-h-52 space-y-0.5 overflow-y-auto">
-          {config.groups.map((group) => (
-            <li
-              key={group.id}
-              className={cx('flex items-center gap-2 rounded px-1 py-1', !group.enabled && 'opacity-40')}
-            >
-              <ColorDot color={group.color} />
-              <span className="flex-1 truncate">{group.name}</span>
-              <span className="tabular-nums text-xs text-zinc-500 dark:text-zinc-400">{countFor(group.id)}</span>
-            </li>
-          ))}
-          {summary && summary.unmatched > 0 ? (
-            <li className="flex items-center gap-2 rounded px-1 py-1 text-zinc-500 dark:text-zinc-400">
-              <span className="size-2.5 shrink-0 rounded-full border border-dashed border-current" />
-              <span className="flex-1 truncate italic">Unmatched</span>
-              <span className="tabular-nums text-xs">{summary.unmatched}</span>
-            </li>
-          ) : null}
-        </ul>
-      </section>
+          <ul className="max-h-52 space-y-0.5 overflow-y-auto">
+            {config.groups.map((group) => (
+              <li
+                key={group.id}
+                className={cx('flex items-center gap-2 rounded px-1 py-1', !group.enabled && 'opacity-40')}
+              >
+                <ColorDot color={group.color} />
+                <span className="flex-1 truncate">{group.name}</span>
+                <span className="tabular-nums text-xs text-zinc-500 dark:text-zinc-400">{countFor(group.id)}</span>
+              </li>
+            ))}
+            {summary && summary.unmatched > 0 ? (
+              <li className="flex items-center gap-2 rounded px-1 py-1 text-zinc-500 dark:text-zinc-400">
+                <span className="size-2.5 shrink-0 rounded-full border border-dashed border-current" />
+                <span className="flex-1 truncate italic">Unmatched</span>
+                <span className="tabular-nums text-xs">{summary.unmatched}</span>
+              </li>
+            ) : null}
+          </ul>
+        </section>
 
-      <footer className="space-y-2 px-3 py-3">
-        <Button variant="primary" className="w-full" disabled={busy} onClick={() => void run('organize')}>
-          <Sparkles className="size-4" />
-          Organise now
-        </Button>
-        <Button variant="ghost" className="w-full" disabled={busy} onClick={() => void run('ungroup')}>
-          <Ungroup className="size-4" />
-          Release my groups
-        </Button>
-        {status ? <p className="text-center text-xs text-zinc-500 dark:text-zinc-400">{status}</p> : null}
-      </footer>
+        <footer className="space-y-2 px-3 py-3">
+          <Button variant="primary" className="w-full" disabled={busy} onClick={() => void run('organize')}>
+            <Sparkles className="size-4" />
+            Organise now
+          </Button>
+          <Button variant="ghost" className="w-full" disabled={busy} onClick={() => void run('ungroup')}>
+            <Ungroup className="size-4" />
+            Release my groups
+          </Button>
+          {status ? <p className="text-center text-xs text-zinc-500 dark:text-zinc-400">{status}</p> : null}
+        </footer>
 
-      {/* An explicit way back to the editor — the header gear alone is too
-          easy to miss once the welcome banner has been dismissed. */}
-      <button
-        type="button"
-        onClick={() => void chrome.runtime.openOptionsPage()}
-        className="group flex items-center gap-2 px-3 py-2.5 text-left text-xs text-zinc-500 transition-colors hover:bg-zinc-50 hover:text-zinc-900 dark:text-zinc-400 dark:hover:bg-zinc-800/50 dark:hover:text-zinc-100"
-      >
-        <span className="flex-1">Manage groups, rules and templates</span>
-        <ArrowRight className="size-3.5 transition-transform group-hover:translate-x-0.5" />
-      </button>
+        {/* An explicit way back to the editor — the header gear alone is too
+            easy to miss once the welcome banner has been dismissed. */}
+        <button
+          type="button"
+          onClick={() => void chrome.runtime.openOptionsPage()}
+          className="group flex items-center gap-2 px-3 py-2.5 text-left text-xs text-zinc-500 transition-colors hover:bg-zinc-50 hover:text-zinc-900 dark:text-zinc-400 dark:hover:bg-zinc-800/50 dark:hover:text-zinc-100"
+        >
+          <span className="flex-1">Manage groups, rules and templates</span>
+          <ArrowRight className="size-3.5 transition-transform group-hover:translate-x-0.5" />
+        </button>
+      </TabSearch>
     </div>
   )
 }
@@ -234,5 +237,3 @@ function QuickAdd({
     </div>
   )
 }
-
-const plural = (count: number, noun: string) => `${count} ${noun}${count === 1 ? '' : 's'}`

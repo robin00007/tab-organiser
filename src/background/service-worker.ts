@@ -1,5 +1,7 @@
 import { ensureConfig, loadConfig, onConfigChanged } from '../lib/storage.ts'
+import { hostOf } from '../lib/matching.ts'
 import { organizeAll, organizeTab, summarize, ungroupManaged } from '../lib/organizer.ts'
+import { searchTabs } from '../lib/search.ts'
 import type { Request } from '../lib/messages.ts'
 import type { Config } from '../lib/types.ts'
 
@@ -96,4 +98,59 @@ chrome.runtime.onMessage.addListener((request: Request, _sender, respond) => {
   })()
   // Keeps the message channel open for the async work above.
   return true
+})
+
+/* ---------------------------------------------------------------- omnibox --
+
+   Typing the keyword in the address bar searches the tabs that are already
+   open, so jumping to one never needs the popup. */
+
+const OMNIBOX_LIMIT = 8
+
+const XML_ESCAPES: Record<string, string> = {
+  '&': '&amp;',
+  '<': '&lt;',
+  '>': '&gt;',
+  '"': '&quot;',
+  "'": '&apos;',
+}
+
+/** Suggestion descriptions are parsed as XML, so page titles have to be escaped. */
+const escapeXml = (text: string) => text.replace(/[&<>"']/g, (char) => XML_ESCAPES[char] ?? char)
+
+/** Focuses a tab wherever it lives, pulling its window forward if need be. */
+async function focusTab(tab: chrome.tabs.Tab): Promise<void> {
+  if (tab.id === undefined) return
+  await chrome.tabs.update(tab.id, { active: true })
+  await chrome.windows.update(tab.windowId, { focused: true })
+}
+
+chrome.omnibox.setDefaultSuggestion({
+  description: 'Search your open tabs — type part of a title or address',
+})
+
+chrome.omnibox.onInputChanged.addListener((text, suggest) => {
+  void (async () => {
+    const tabs = await chrome.tabs.query({})
+    suggest(
+      searchTabs(tabs, text)
+        .slice(0, OMNIBOX_LIMIT)
+        .map((tab) => ({
+          // The URL doubles as the suggestion's identity and as something
+          // readable once Chrome drops it into the address bar.
+          content: tab.url ?? '',
+          description: `<match>${escapeXml(tab.title ?? '')}</match> <dim>${escapeXml(hostOf(tab.url ?? ''))}</dim>`,
+        })),
+    )
+  })()
+})
+
+chrome.omnibox.onInputEntered.addListener((text) => {
+  void (async () => {
+    const tabs = await chrome.tabs.query({})
+    // An exact URL means the user picked a suggestion; anything else is a query
+    // they typed and submitted without choosing, so take the best match.
+    const target = tabs.find((tab) => tab.url === text) ?? searchTabs(tabs, text)[0]
+    if (target) await focusTab(target)
+  })()
 })

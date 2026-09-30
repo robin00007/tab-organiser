@@ -133,8 +133,10 @@ export function Options() {
         {panel === 'Groups' ? (
           <>
             <p className="text-xs text-zinc-500 dark:text-zinc-400">
-              A tab joins the first group that matches it, so order is priority — move the specific groups above the
-              broad ones.
+              A tab joins the group whose matching rule pins down the most of its URL, so a rule for
+              <code className="mx-1 rounded bg-zinc-100 px-1 py-0.5 dark:bg-zinc-800">instagram.com/you</code>
+              beats one for <code className="mx-1 rounded bg-zinc-100 px-1 py-0.5 dark:bg-zinc-800">instagram.com</code>
+              wherever its group sits. Groups that match equally well fall back to this order — move one up to win ties.
             </p>
             {config.groups.map((group, index) => (
               <GroupCard

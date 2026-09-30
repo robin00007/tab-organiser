@@ -22,17 +22,34 @@ The options page opens on first install with four starter groups ready to go.
 ## How it works
 
 A group is a **name**, a **colour** and a list of **rules**. When a tab finishes
-loading, the extension walks your groups in order and drops the tab into the
-first one whose rules match. That ordering is the priority knob — put the
-specific groups above the broad ones:
+loading, the extension finds every group whose rules match and drops the tab into
+the one that matched *most specifically*:
 
 ```
-Work   →  URL starts with  https://github.com/acme/
 Dev    →  Domain           github.com
+Work   →  URL starts with  https://github.com/acme/
 ```
 
-With those in that order, `github.com/acme/api` goes to **Work** and every other
-GitHub URL goes to **Dev**.
+`github.com/acme/api` goes to **Work** even though **Dev** is listed first,
+because `github.com/acme/` pins down more of the URL than `github.com` does.
+Every other GitHub URL goes to **Dev**.
+
+### When two groups cover the same site
+
+Specificity is measured in characters of the URL a rule pins down, ignoring the
+scheme. So a site can live in two groups at once:
+
+```
+Social            →  Domain           instagram.com                        (13)
+Content creation  →  URL starts with  https://www.instagram.com/robin0007  (27)
+```
+
+`instagram.com/robin0007/reels` goes to **Content creation**; anything else on
+Instagram goes to **Social**. A group is judged on its best matching rule, not
+its first, and when two groups pin down exactly as much, the one higher up the
+list wins — so **Groups** order is still the tie-breaker. **Try a URL** at the
+bottom of the Groups tab shows the winner and every runner-up, with the rule
+that decided it.
 
 ### Rule types
 
@@ -44,6 +61,24 @@ GitHub URL goes to **Dev**.
 | `Regex` | a JavaScript regular expression against the URL | `^https://.*\.atlassian\.net/browse/` |
 
 Paste a whole list of domains at once with **Paste a list** on any group.
+
+### Finding an open tab
+
+Three ways to search the tabs you already have open, by title or address:
+
+- The **search field** at the top of the popup. Arrow keys move through the
+  results, `Enter` jumps to the tab, `Esc` clears the field, and the `×` on a
+  row closes that tab. Each result shows the Chrome group it is sitting in.
+- `Alt+Shift+O` opens the popup with the field already focused. Rebind it at
+  `chrome://extensions/shortcuts`.
+- Type `tab` in the address bar, then `Tab` or a space, then your query. Picking
+  a suggestion focuses that tab, pulling its window forward if it is in another
+  one.
+
+Every word you type has to land somewhere, so adding a word narrows the list.
+Only tabs that are open right now are searched — nothing is indexed or kept, and
+browser pages like `chrome://extensions` are findable even though they are never
+organised.
 
 ### Getting back to the editor
 
@@ -93,7 +128,7 @@ Groups, rules and settings export to a JSON file from the **Backup** tab.
 ```bash
 npm run build       # icons + typecheck + bundle to dist/
 npm run typecheck   # tsc --noEmit
-npm run test        # matching-engine unit tests
+npm run test        # matching-engine and tab-search unit tests
 npm run package     # build, then zip dist/ for upload
 ```
 
@@ -103,13 +138,13 @@ After a rebuild, hit the reload button on the extension card in
 ### Layout
 
 ```
-src/lib/          matching engine, storage schema, Chrome-group orchestration
+src/lib/          matching engine, tab search, storage schema, Chrome-group orchestration
 src/background/   MV3 service worker — events, debouncing, message handling
 src/popup/        toolbar popup
 src/options/      full settings page
 src/ui/           shared components, theme, config hook
 scripts/          generates the PNG icons from code
-tests/            unit tests for the matching engine (node --test)
+tests/            unit tests for the matching engine and tab search (node --test)
 ```
 
 The pages and the service worker are bundled separately: the worker is emitted
@@ -124,6 +159,14 @@ as one self-contained script so it never depends on chunk resolution at runtime.
 - **Groups are per window.** Chrome has no cross-window groups, so a sweep
   creates one group per window per rule-group and batches tabs into a single
   `tabs.group` call per bucket.
+- **Specificity beats list order.** Ranking by how much of the URL a rule pins
+  down means a URL like `instagram.com/you` reaches the right group without the
+  user having to reason about which group to drag above which. List order is
+  kept as the tie-breaker so the old behaviour still applies when two rules are
+  equally precise.
+- **Search reads live tabs, never an index.** `chrome.tabs.query` is the only
+  source, so there is nothing to keep fresh, nothing to invalidate and no record
+  of what you have had open.
 - **Storage is `local`, not `sync`.** `storage.sync` has an 8 KB per-item cap,
   which a few hundred rules would blow through. JSON export covers moving
   between machines.
@@ -132,7 +175,7 @@ as one self-contained script so it never depends on chunk resolution at runtime.
 
 | Permission | Why |
 | --- | --- |
-| `tabs` | read tab URLs and titles to match them against your rules |
+| `tabs` | read tab URLs and titles to match them against your rules, and to search them |
 | `tabGroups` | create groups and set their title, colour and collapsed state |
 | `storage` | keep your groups and settings in this browser profile |
 

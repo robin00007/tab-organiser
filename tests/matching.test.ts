@@ -2,11 +2,14 @@ import { test } from 'node:test'
 import assert from 'node:assert/strict'
 import {
   findGroupForTab,
+  findMatchForTab,
   hostOf,
   isOrganizable,
   isValidRule,
   normalizeRuleValue,
+  rankMatchesForTab,
   ruleMatches,
+  ruleScore,
 } from '../src/lib/matching.ts'
 import type { Group, MatchKind, Rule } from '../src/lib/types.ts'
 
@@ -96,14 +99,76 @@ test('a muted rule and a disabled group both stop matching', () => {
   assert.equal(findGroupForTab(groups, { url: 'https://x.com' }), null)
 })
 
-test('the first matching group wins, so order is priority', () => {
+test('a specific rule beats a broad one, whatever the group order', () => {
   const groups = [
-    group('Work', [rule('prefix', 'https://github.com/acme/')]),
     group('Dev', [rule('domain', 'github.com')]),
+    group('Work', [rule('prefix', 'https://github.com/acme/')]),
   ]
   assert.equal(findGroupForTab(groups, { url: 'https://github.com/acme/api' })?.name, 'Work')
   assert.equal(findGroupForTab(groups, { url: 'https://github.com/someone/else' })?.name, 'Dev')
   assert.equal(findGroupForTab(groups, { url: 'https://example.com' }), null)
+})
+
+test('the same domain in two groups goes to the one whose URL matches deeper', () => {
+  const groups = [
+    group('Social', [rule('domain', 'instagram.com')]),
+    group('Content creation', [rule('prefix', 'https://www.instagram.com/robin0007')]),
+  ]
+  const profile = findMatchForTab(groups, { url: 'https://www.instagram.com/robin0007/reels/' })
+  assert.equal(profile?.group.name, 'Content creation')
+  assert.equal(profile?.rule.value, 'https://www.instagram.com/robin0007')
+
+  // Anything else on the same host still belongs to the broad group.
+  assert.equal(findGroupForTab(groups, { url: 'https://www.instagram.com/explore/' })?.name, 'Social')
+})
+
+test('order still settles groups that match equally well', () => {
+  const rules = [rule('domain', 'instagram.com')]
+  const first = group('Social', rules)
+  const second = group('Content creation', [rule('domain', 'instagram.com')])
+  assert.equal(findGroupForTab([first, second], { url: 'https://instagram.com/' })?.name, 'Social')
+  assert.equal(findGroupForTab([second, first], { url: 'https://instagram.com/' })?.name, 'Content creation')
+})
+
+test('a group is judged on its best rule, not its first', () => {
+  const groups = [
+    group('Social', [rule('domain', 'instagram.com')]),
+    group('Work', [rule('domain', 'example.com'), rule('prefix', 'instagram.com/company/acme')]),
+  ]
+  assert.equal(findGroupForTab(groups, { url: 'https://instagram.com/company/acme' })?.name, 'Work')
+})
+
+test('scores count the characters of the URL a rule pins down', () => {
+  const url = 'https://www.instagram.com/robin0007'
+  assert.equal(ruleScore(rule('domain', 'instagram.com'), { url }), 'instagram.com'.length)
+  // The scheme is not counted, so typing it or leaving it out scores the same.
+  assert.equal(ruleScore(rule('prefix', 'https://www.instagram.com/'), { url }), 'www.instagram.com/'.length)
+  assert.equal(ruleScore(rule('prefix', 'www.instagram.com/'), { url }), 'www.instagram.com/'.length)
+  assert.equal(ruleScore(rule('keyword', 'robin0007'), { url }), 'robin0007'.length)
+  // A regex is measured by how much of the URL it consumed.
+  assert.equal(ruleScore(rule('regex', String.raw`instagram\.com/robin\d+`), { url }), 'instagram.com/robin0007'.length)
+  assert.equal(ruleScore(rule('domain', 'facebook.com'), { url }), null)
+})
+
+test('a rule that pins down nothing still matches but never outranks', () => {
+  const groups = [
+    group('Everything', [rule('prefix', 'https://')]),
+    group('Social', [rule('domain', 'instagram.com')]),
+  ]
+  assert.equal(ruleScore(rule('prefix', 'https://'), { url: 'https://instagram.com/' }), 0)
+  assert.equal(findGroupForTab(groups, { url: 'https://instagram.com/' })?.name, 'Social')
+  assert.equal(findGroupForTab(groups, { url: 'https://example.com/' })?.name, 'Everything')
+})
+
+test('rankMatchesForTab lists every claimant, most specific first', () => {
+  const groups = [
+    group('Social', [rule('domain', 'instagram.com')]),
+    group('Content creation', [rule('prefix', 'https://www.instagram.com/robin0007')]),
+    group('Work', [rule('domain', 'example.com')]),
+  ]
+  const ranked = rankMatchesForTab(groups, { url: 'https://www.instagram.com/robin0007' })
+  assert.deepEqual(ranked.map((match) => match.group.name), ['Content creation', 'Social'])
+  assert.deepEqual(rankMatchesForTab(groups, { url: 'chrome://extensions' }), [])
 })
 
 test('empty rule values never match everything', () => {
