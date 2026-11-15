@@ -80,6 +80,23 @@ Only tabs that are open right now are searched — nothing is indexed or kept, a
 browser pages like `chrome://extensions` are findable even though they are never
 organised.
 
+### Duplicate tabs
+
+Open a page that is already open and the new tab never sticks around: it closes,
+the tab you already had comes to the front (pulling its window forward if it is in
+another one) and reloads. It works for links, `Ctrl/Cmd+Click`, the address bar —
+anything that opens a new tab.
+
+- "Same page" means the same address, including the query and the `#fragment`,
+  so `…/mail/#inbox` and `…/mail/#sent` stay separate tabs. `www.` and `http` vs
+  `https` also count as different.
+- Only a tab's **first** page is checked. Clicking a link inside a tab you are
+  already using never closes that tab.
+- **Duplicate** from the tab's right-click menu is deliberate, so it is kept.
+- Only `http` and `https` pages count. Popup windows are never closed, and an
+  incognito tab only merges with another incognito tab.
+- Turn it off with **Merge duplicate tabs** in Settings.
+
 ### Getting back to the editor
 
 The welcome banner is a one-time greeting, not a setup wizard — dismissing it
@@ -116,6 +133,8 @@ are already open. It is also the first thing the onboarding banner offers you.
 - **Auto-organise new tabs** — group tabs as they load. Off shows an `off` badge
   on the toolbar icon.
 - **Organise on browser startup** — sweep restored tabs when Chrome opens.
+- **Merge duplicate tabs** — opening a page that is already open closes the new
+  tab and reloads the existing one. On by default.
 - **Move tabs that no longer fit** — a tab in one of your groups that navigates
   elsewhere moves to the group that now matches.
 - **Release tabs that match nothing** — pull tabs out of your groups when no
@@ -128,7 +147,7 @@ Groups, rules and settings export to a JSON file from the **Backup** tab.
 ```bash
 npm run build       # icons + typecheck + bundle to dist/
 npm run typecheck   # tsc --noEmit
-npm run test        # matching-engine and tab-search unit tests
+npm run test        # matching-engine, tab-search and duplicate-detection unit tests
 npm run package     # build, then zip dist/ for upload
 ```
 
@@ -138,13 +157,13 @@ After a rebuild, hit the reload button on the extension card in
 ### Layout
 
 ```
-src/lib/          matching engine, tab search, storage schema, Chrome-group orchestration
+src/lib/          matching engine, tab search, duplicate merging, storage schema, Chrome-group orchestration
 src/background/   MV3 service worker — events, debouncing, message handling
 src/popup/        toolbar popup
 src/options/      full settings page
 src/ui/           shared components, theme, config hook
 scripts/          generates the PNG icons from code
-tests/            unit tests for the matching engine and tab search (node --test)
+tests/            unit tests for the matching engine, tab search and duplicate detection (node --test)
 ```
 
 The pages and the service worker are bundled separately: the worker is emitted
@@ -167,6 +186,14 @@ as one self-contained script so it never depends on chunk resolution at runtime.
 - **Search reads live tabs, never an index.** `chrome.tabs.query` is the only
   source, so there is nothing to keep fresh, nothing to invalidate and no record
   of what you have had open.
+- **A tab is "new" until its first web page commits.** Chrome reports a freshly
+  opened tab with an empty `url` and the target in `pendingUrl`, whereas a
+  duplicated tab already carries its `url`. Tracking "has this tab shown a page
+  yet" therefore separates *opening* a page from *navigating* to one, without
+  asking the user to tell us which they meant. The set is held in memory; if the
+  service worker is recycled mid-load the tab is simply not merged.
+- **Merges are serialised.** Two identical tabs opened together would each see
+  the other as the original and both close, so merges run through one queue.
 - **Storage is `local`, not `sync`.** `storage.sync` has an 8 KB per-item cap,
   which a few hundred rules would blow through. JSON export covers moving
   between machines.

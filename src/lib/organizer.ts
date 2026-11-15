@@ -1,4 +1,5 @@
 import { findGroupForTab, isOrganizable } from './matching.ts'
+import { normalWindowIds } from './tabs.ts'
 import type { Config, Group, OrganizeResult, Scope } from './types.ts'
 
 const NO_GROUP = chrome.tabGroups?.TAB_GROUP_ID_NONE ?? -1
@@ -11,12 +12,6 @@ const asNonEmpty = <T>(items: T[]): NonEmpty<T> | null =>
   items.length > 0 ? (items as NonEmpty<T>) : null
 
 const groupKey = (name: string) => name.trim().toLowerCase()
-
-/** Tab groups only exist in normal windows, not popups or app windows. */
-async function normalWindowIds(): Promise<Set<number>> {
-  const windows = await chrome.windows.getAll({ windowTypes: ['normal'] })
-  return new Set(windows.map((w) => w.id).filter((id): id is number => id !== undefined))
-}
 
 /**
  * Chrome tab groups have no stable identity we could store, so a group is

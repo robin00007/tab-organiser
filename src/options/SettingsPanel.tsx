@@ -23,6 +23,12 @@ export function SettingsPanel({
         description="Run a full sweep over restored tabs when Chrome opens."
       />
       <Toggle
+        checked={settings.mergeDuplicates}
+        onChange={(mergeDuplicates) => onChange({ mergeDuplicates })}
+        label="Merge duplicate tabs"
+        description="Open a page that is already open and the new tab closes; the existing one comes forward and reloads. Tabs you duplicate yourself are kept."
+      />
+      <Toggle
         checked={settings.moveMismatched}
         onChange={(moveMismatched) => onChange({ moveMismatched })}
         label="Move tabs that no longer fit"

@@ -11,6 +11,7 @@ export const DEFAULT_SETTINGS: Settings = {
   scope: 'allWindows',
   moveMismatched: true,
   ungroupUnmatched: false,
+  mergeDuplicates: true,
 }
 
 export const newId = (): string => crypto.randomUUID()
@@ -103,6 +104,7 @@ export function parseConfig(raw: unknown): Config {
       scope: pickEnum(rawSettings.scope, ['currentWindow', 'allWindows'] as const, DEFAULT_SETTINGS.scope),
       moveMismatched: pickBool(rawSettings.moveMismatched, DEFAULT_SETTINGS.moveMismatched),
       ungroupUnmatched: pickBool(rawSettings.ungroupUnmatched, DEFAULT_SETTINGS.ungroupUnmatched),
+      mergeDuplicates: pickBool(rawSettings.mergeDuplicates, DEFAULT_SETTINGS.mergeDuplicates),
     },
   }
 }

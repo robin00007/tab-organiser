@@ -62,6 +62,8 @@ export interface Settings {
   moveMismatched: boolean
   /** During a sweep, pull tabs out of our groups when they match nothing. */
   ungroupUnmatched: boolean
+  /** Opening a page that is already open in another tab focuses and reloads that tab instead. */
+  mergeDuplicates: boolean
 }
 
 export interface Config {

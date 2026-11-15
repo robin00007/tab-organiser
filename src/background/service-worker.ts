@@ -1,7 +1,10 @@
 import { ensureConfig, loadConfig, onConfigChanged } from '../lib/storage.ts'
+import { duplicateKey } from '../lib/duplicates.ts'
 import { hostOf } from '../lib/matching.ts'
+import { mergeIfDuplicate } from '../lib/merge.ts'
 import { organizeAll, organizeTab, summarize, ungroupManaged } from '../lib/organizer.ts'
 import { searchTabs } from '../lib/search.ts'
+import { focusTab } from '../lib/tabs.ts'
 import type { Request } from '../lib/messages.ts'
 import type { Config } from '../lib/types.ts'
 
@@ -64,11 +67,44 @@ chrome.runtime.onStartup.addListener(async () => {
   if (config.settings.organizeOnStartup) await organizeAll(config, 'allWindows')
 })
 
+/* ------------------------------------------------------------- duplicates --
+
+   A tab is "new" from the moment it is created until its first web page
+   commits; only then is it checked against the tabs already open. Judging a
+   later navigation would close a tab the user has been working in just because
+   they clicked a link to somewhere that happens to be open elsewhere.
+
+   The set lives in memory. If the worker is recycled before the page commits
+   the tab simply is not merged, which is the safe way to get it wrong. */
+const freshTabs = new Set<number>()
+
+/**
+ * Merges run one at a time. Two identical tabs opened together would otherwise
+ * each see the other as the original and both close themselves.
+ */
+let mergeQueue: Promise<unknown> = Promise.resolve()
+
+function mergeLater(tabId: number): void {
+  mergeQueue = mergeQueue
+    .then(async () => {
+      if ((await getConfig()).settings.mergeDuplicates) await mergeIfDuplicate(tabId)
+    })
+    .catch(() => {})
+}
+
 chrome.tabs.onCreated.addListener((tab) => {
-  if (tab.id !== undefined) schedule(tab.id)
+  if (tab.id === undefined) return
+  // A tab that arrives already showing a page is not the user opening something
+  // new, so it is never merged. A fresh tab has no committed page yet.
+  if (duplicateKey(tab.url) === null) freshTabs.add(tab.id)
+  schedule(tab.id)
 })
 
 chrome.tabs.onUpdated.addListener((tabId, changeInfo) => {
+  if (freshTabs.has(tabId) && duplicateKey(changeInfo.url) !== null) {
+    freshTabs.delete(tabId)
+    mergeLater(tabId)
+  }
   // Only react to navigation and load completion. Reacting to `groupId` here
   // would make our own grouping call re-trigger this listener.
   if (changeInfo.url === undefined && changeInfo.status !== 'complete') return
@@ -76,6 +112,7 @@ chrome.tabs.onUpdated.addListener((tabId, changeInfo) => {
 })
 
 chrome.tabs.onRemoved.addListener((tabId) => {
+  freshTabs.delete(tabId)
   const timer = pending.get(tabId)
   if (timer) clearTimeout(timer)
   pending.delete(tabId)
@@ -117,13 +154,6 @@ const XML_ESCAPES: Record<string, string> = {
 
 /** Suggestion descriptions are parsed as XML, so page titles have to be escaped. */
 const escapeXml = (text: string) => text.replace(/[&<>"']/g, (char) => XML_ESCAPES[char] ?? char)
-
-/** Focuses a tab wherever it lives, pulling its window forward if need be. */
-async function focusTab(tab: chrome.tabs.Tab): Promise<void> {
-  if (tab.id === undefined) return
-  await chrome.tabs.update(tab.id, { active: true })
-  await chrome.windows.update(tab.windowId, { focused: true })
-}
 
 chrome.omnibox.setDefaultSuggestion({
   description: 'Search your open tabs — type part of a title or address',
