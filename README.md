@@ -51,6 +51,24 @@ list wins — so **Groups** order is still the tie-breaker. **Try a URL** at the
 bottom of the Groups tab shows the winner and every runner-up, with the rule
 that decided it.
 
+### Contains beats everything else
+
+The one exception to "most characters wins" is the **Contains** rule. A domain or
+URL prefix is often generic — a whole site, or everything under a path — while a
+word you typed in on purpose is particular. So if a tab is claimed by a Contains
+rule in one group and by a domain, prefix or regex in another, the **Contains
+group wins**, however long the other rule is:
+
+```
+Dev      →  Domain    github.com
+Billing  →  Contains  invoice
+```
+
+`github.com/acme/invoice-4021` goes to **Billing**. Between two Contains rules the
+longer word wins, then list order. This is also why a short, common Contains word
+such as `mail` is risky: it will take tabs from every domain rule you have.
+**Try a URL** at the bottom of Groups shows who won and why.
+
 ### Rule types
 
 | Type | Matches | Example |
@@ -96,9 +114,12 @@ What you type decides what is searched:
 | `github.com`, `localhost:3000` | An **Open** row comes first; the web search is one arrow key down |
 | `/tab xyz` | Search your open tabs. `Enter` jumps to one and closes the blank tab you came from |
 | `/tab` | List every open tab, current window first — a quick switcher |
+| `/youtube xyz` (or `/yt xyz`) | Open YouTube's own results page for `xyz`. Bare `/youtube` opens YouTube |
 | `/` | List the available commands; `Tab` or `Enter` completes one |
 
-An unknown `/something` is simply searched for as typed, so nothing is swallowed.
+`/youtube` is a *site shortcut*: nothing is sent to YouTube while you type, the
+page only opens when you press `Enter`. An unknown `/something` is simply
+searched for as typed, so nothing is swallowed.
 Typing a page that is already open merges into the tab you already have (see
 *Duplicate tabs*). Arrow keys move, `Esc` clears.
 
@@ -131,6 +152,24 @@ Every source is one object that satisfies `Provider` in
 3. If it needs a new permission (bookmarks and history both do), add it to the
    manifest and the permissions table below.
 
+A website's own search is smaller still. `/youtube` is just this, in
+[`src/newtab/providers/youtube.ts`](src/newtab/providers/youtube.ts):
+
+```ts
+export const youtubeProvider = siteProvider({
+  id: 'youtube',
+  trigger: '/youtube',
+  aliases: ['/yt'],
+  label: 'YouTube',
+  home: 'https://www.youtube.com/',
+  searchUrl: 'https://www.youtube.com/results?search_query={query}',
+})
+```
+
+Copy it for another site (`/github`, `/maps`…) and add it to `COMMANDS`. `aliases`
+are shorter names that work too; they are not listed separately, so `/` still shows
+one entry per site. The query is escaped for you, and no permission is needed because the page just navigates.
+
 ### Duplicate tabs
 
 Open a page that is already open and the new tab never sticks around: it closes,
@@ -160,7 +199,8 @@ changes nothing. Everything stays editable. Three ways back in:
 
 On that page, **Groups** edits what you have (rename, recolour, reorder, add or
 delete rules, delete the group) and **Templates** adds more prebuilt groups at
-any time. **New group** at the bottom of Groups starts an empty one.
+any time. **New group** at the bottom of Groups opens an empty draft; nothing is
+created until you give it a name and at least one rule and press **Save group**.
 
 To add the site you are looking at without opening the editor: open the popup on
 that tab and, when no group matches it, pick one from the dropdown and hit
@@ -232,6 +272,10 @@ as one self-contained script so it never depends on chunk resolution at runtime.
 - **Groups are per window.** Chrome has no cross-window groups, so a sweep
   creates one group per window per rule-group and batches tabs into a single
   `tabs.group` call per bucket.
+- **Contains is its own tier.** It is compared before the character count rather
+  than folded into it, so `ruleScore` keeps meaning "characters of the URL
+  pinned down" and the explainer stays honest. One comparison drives picking a
+  group's best rule, the winning group and the runners-up list.
 - **Specificity beats list order.** Ranking by how much of the URL a rule pins
   down means a URL like `instagram.com/you` reaches the right group without the
   user having to reason about which group to drag above which. List order is

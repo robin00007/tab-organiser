@@ -26,3 +26,8 @@ test('hand-edited nonsense falls back instead of reaching the page', () => {
   assert.equal(settings.clock, 'auto')
   assert.equal(settings.scene, 'auto')
 })
+
+test('a group with no name stays nameless instead of becoming "Untitled"', () => {
+  const { groups } = parseConfig({ groups: [{ name: '' }, { name: '  Work  ' }, {}] })
+  assert.deepEqual(groups.map((group) => group.name), ['', 'Work', ''])
+})

@@ -1,5 +1,5 @@
 import { useState } from 'react'
-import { ChevronDown, ChevronRight, ChevronUp, Eye, EyeOff, ListPlus, Plus, Trash2, X } from 'lucide-react'
+import { Check, ChevronDown, ChevronRight, ChevronUp, Eye, EyeOff, ListPlus, Plus, Trash2, X } from 'lucide-react'
 import { isValidRule } from '../lib/matching.ts'
 import { makeRule } from '../lib/storage.ts'
 import {
@@ -14,14 +14,25 @@ import { Button, ColorPicker, IconButton, Input, Select, Toggle, cx } from '../u
 
 interface GroupCardProps {
   group: Group
-  matching: number
-  isFirst: boolean
-  isLast: boolean
+  /** Open tabs this group would take. Saved groups only. */
+  matching?: number
+  isFirst?: boolean
+  isLast?: boolean
   /** Set when another group shares this name — they would merge in Chrome. */
   duplicateName: boolean
   onChange: (recipe: (group: Group) => Group) => void
-  onMove: (direction: -1 | 1) => void
-  onDelete: () => void
+  onMove?: (direction: -1 | 1) => void
+  onDelete?: () => void
+  /**
+   * Present while the group is a draft: it exists only on this page until Save
+   * is pressed, so half-typed names and empty rule rows never reach storage.
+   */
+  draft?: {
+    /** Why Save is unavailable, or `null` when the group is ready. */
+    problem: string | null
+    onSave: () => void
+    onCancel: () => void
+  }
 }
 
 export function GroupCard({
@@ -33,6 +44,7 @@ export function GroupCard({
   onChange,
   onMove,
   onDelete,
+  draft,
 }: GroupCardProps) {
   const [bulkOpen, setBulkOpen] = useState(false)
   // A template drops in a dozen rules at once, so cards start closed and the
@@ -41,7 +53,9 @@ export function GroupCard({
   // Chrome groups are matched back to config by title, so a name is required
   // and has to be unique.
   const nameProblem = !group.name.trim()
-    ? 'Give the group a name — Chrome needs a title to reuse the group.'
+    ? draft
+      ? null // Save explains what is missing; no need to scold an empty draft.
+      : 'Give the group a name — Chrome needs a title to reuse the group.'
     : duplicateName
       ? 'Another group has this name. Tabs from both will land in one Chrome group.'
       : null
@@ -58,7 +72,10 @@ export function GroupCard({
   return (
     <section
       className={cx(
-        'rounded-lg border border-zinc-200 bg-white dark:border-zinc-800 dark:bg-zinc-900',
+        'rounded-lg border bg-white dark:bg-zinc-900',
+        draft
+          ? 'border-dashed border-indigo-300 dark:border-indigo-800'
+          : 'border-zinc-200 dark:border-zinc-800',
         !group.enabled && 'opacity-60',
       )}
     >
@@ -66,6 +83,8 @@ export function GroupCard({
         <Input
           value={group.name}
           aria-label="Group name"
+          placeholder={draft ? 'Group name' : undefined}
+          autoFocus={Boolean(draft)}
           onChange={(event) => onChange((current) => ({ ...current, name: event.target.value }))}
           className={cx('w-44 font-medium', nameProblem && 'border-amber-500 dark:border-amber-500')}
         />
@@ -82,14 +101,21 @@ export function GroupCard({
           {open ? <ChevronDown className="size-3.5" /> : <ChevronRight className="size-3.5" />}
           {group.rules.length} {group.rules.length === 1 ? 'rule' : 'rules'}
         </button>
-        <span className="text-xs text-zinc-500 tabular-nums dark:text-zinc-400">
-          {matching} open {matching === 1 ? 'tab' : 'tabs'}
-        </span>
+        {draft ? (
+          <span className="rounded bg-indigo-50 px-1.5 py-0.5 text-[11px] font-medium text-indigo-700 dark:bg-indigo-950/60 dark:text-indigo-300">
+            Not saved yet
+          </span>
+        ) : (
+          <span className="text-xs text-zinc-500 tabular-nums dark:text-zinc-400">
+            {matching} open {matching === 1 ? 'tab' : 'tabs'}
+          </span>
+        )}
+        {!draft ? (
         <div className="flex items-center">
-          <IconButton label="Move up" disabled={isFirst} onClick={() => onMove(-1)}>
+          <IconButton label="Move up" disabled={isFirst} onClick={() => onMove?.(-1)}>
             <ChevronUp className="size-4" />
           </IconButton>
-          <IconButton label="Move down" disabled={isLast} onClick={() => onMove(1)}>
+          <IconButton label="Move down" disabled={isLast} onClick={() => onMove?.(1)}>
             <ChevronDown className="size-4" />
           </IconButton>
           <IconButton
@@ -106,6 +132,7 @@ export function GroupCard({
             <Trash2 className="size-4" />
           </IconButton>
         </div>
+        ) : null}
       </header>
 
       {nameProblem ? (
@@ -163,6 +190,21 @@ export function GroupCard({
         {bulkOpen ? <BulkAdd onAdd={(rules) => { addRules(rules); setBulkOpen(false) }} /> : null}
       </div>
       )}
+
+      {draft ? (
+        <footer className="flex flex-wrap items-center gap-2 border-t border-zinc-100 p-3 dark:border-zinc-800">
+          <Button variant="primary" disabled={draft.problem !== null} onClick={draft.onSave}>
+            <Check className="size-3.5" />
+            Save group
+          </Button>
+          <Button variant="ghost" onClick={draft.onCancel}>
+            Cancel
+          </Button>
+          {draft.problem ? (
+            <span className="text-xs text-zinc-500 dark:text-zinc-400">{draft.problem}</span>
+          ) : null}
+        </footer>
+      ) : null}
     </section>
   )
 }

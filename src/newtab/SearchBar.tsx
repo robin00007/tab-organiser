@@ -159,7 +159,7 @@ export function SearchBar() {
           placeholder="Search the web, or type / for commands"
           onChange={(event) => setText(event.target.value)}
           onKeyDown={onKeyDown}
-          className="min-w-0 flex-1 bg-transparent text-lg text-white outline-none placeholder:text-white/45"
+          className="min-w-0 flex-1 cursor-text bg-transparent text-lg text-white outline-none select-text placeholder:text-white/45"
         />
         {label ? (
           <span className="shrink-0 rounded-full bg-white/15 px-3 py-1 text-xs font-medium text-white/90">{label}</span>

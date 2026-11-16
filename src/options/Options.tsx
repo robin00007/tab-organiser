@@ -2,6 +2,7 @@ import { useCallback, useEffect, useState } from 'react'
 import { Layers, Plus, Sparkles, X } from 'lucide-react'
 import { sendMessage } from '../lib/messages.ts'
 import type { Summary } from '../lib/organizer.ts'
+import { draftProblem, finalizeDraft } from '../lib/draft.ts'
 import { groupFromTemplate, makeGroup } from '../lib/storage.ts'
 import { TEMPLATES_BY_ID } from '../lib/templates.ts'
 import type { Config, Group, Settings } from '../lib/types.ts'
@@ -21,6 +22,8 @@ export function Options() {
   const [panel, setPanel] = useState<Panel>('Groups')
   const [summary, setSummary] = useState<Summary | null>(null)
   const [status, setStatus] = useState<string | null>(null)
+  // A group being created lives here, not in the stored config, until Save.
+  const [draft, setDraft] = useState<Group | null>(null)
 
   const refresh = useCallback(async () => {
     setSummary(await sendMessage({ type: 'SUMMARY' }))
@@ -70,6 +73,14 @@ export function Options() {
     )
     if (!config.onboarded) update((previous) => ({ ...previous, onboarded: true }))
     await refresh()
+  }
+
+  const saveDraft = () => {
+    if (!draft || draftProblem(draft)) return
+    const group = finalizeDraft(draft)
+    update((previous) => ({ ...previous, groups: [...previous.groups, group] }))
+    setStatus(`Created the ${group.name} group.`)
+    setDraft(null)
   }
 
   const countFor = (groupId: string) =>
@@ -136,7 +147,9 @@ export function Options() {
               A tab joins the group whose matching rule pins down the most of its URL, so a rule for
               <code className="mx-1 rounded bg-zinc-100 px-1 py-0.5 dark:bg-zinc-800">instagram.com/you</code>
               beats one for <code className="mx-1 rounded bg-zinc-100 px-1 py-0.5 dark:bg-zinc-800">instagram.com</code>
-              wherever its group sits. Groups that match equally well fall back to this order — move one up to win ties.
+              wherever its group sits. The exception is a <strong>Contains</strong> rule: a word you chose on purpose
+              is more particular than a whole site, so it always wins over Domain and URL rules. Groups that match equally
+              well fall back to this order — move one up to win ties.
             </p>
             {config.groups.map((group, index) => (
               <GroupCard
@@ -156,12 +169,18 @@ export function Options() {
                 }
               />
             ))}
-            <div className="flex flex-wrap items-center gap-2">
-              <Button
-                onClick={() =>
-                  update((previous) => ({ ...previous, groups: [...previous.groups, makeGroup()] }))
+            {draft ? (
+              <GroupCard
+                group={draft}
+                duplicateName={
+                  draft.name.trim() !== '' && nameCounts.has(draft.name.trim().toLowerCase())
                 }
-              >
+                onChange={(recipe) => setDraft((current) => (current ? recipe(current) : current))}
+                draft={{ problem: draftProblem(draft), onSave: saveDraft, onCancel: () => setDraft(null) }}
+              />
+            ) : null}
+            <div className="flex flex-wrap items-center gap-2">
+              <Button disabled={draft !== null} onClick={() => setDraft(makeGroup({ name: '' }))}>
                 <Plus className="size-3.5" />
                 New group
               </Button>

@@ -44,7 +44,7 @@ export function RuleTester({ groups }: { groups: Group[] }) {
               <div className="space-y-1 border-t border-zinc-100 pt-2 dark:border-zinc-800">
                 <p className="text-[11px] text-zinc-500 dark:text-zinc-400">
                   {runnersUp.length === 1 ? 'One other group' : `${runnersUp.length} other groups`} also match
-                  {runnersUp.length === 1 ? 'es' : ''}, less specifically:
+                  {runnersUp.length === 1 ? 'es' : ''}, but rank{runnersUp.length === 1 ? 's' : ''} lower:
                 </p>
                 {runnersUp.map((match) => (
                   <p

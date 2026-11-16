@@ -88,7 +88,9 @@ export function parseConfig(raw: unknown): Config {
     ? raw.groups.filter(isRecord).map((group) =>
         makeGroup({
           id: typeof group.id === 'string' ? group.id : newId(),
-          name: typeof group.name === 'string' && group.name.trim() ? group.name.trim() : 'Untitled',
+          // Never invent a name: a nameless group is skipped by the matcher, whereas
+          // a made-up "Untitled" would be treated as a real group and fill with tabs.
+          name: typeof group.name === 'string' ? group.name.trim() : '',
           color: pickEnum(group.color, GROUP_COLORS, 'blue'),
           enabled: pickBool(group.enabled, true),
           collapse: pickBool(group.collapse, false),

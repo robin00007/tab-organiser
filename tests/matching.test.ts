@@ -181,3 +181,36 @@ test('an unnamed group is skipped — Chrome groups are re-found by title', () =
   const groups = [group('  ', [rule('domain', 'x.com')]), group('Social', [rule('domain', 'x.com')])]
   assert.equal(findGroupForTab(groups, { url: 'https://x.com' })?.name, 'Social')
 })
+
+test('a Contains rule beats a domain or prefix, even one that pins down more of the URL', () => {
+  const url = 'https://github.com/acme/api/invoice'
+  const dev = group('Dev', [rule('domain', 'github.com')])
+  const work = group('Work', [rule('prefix', 'https://github.com/acme/api')])
+  const billing = group('Billing', [rule('keyword', 'invoice')])
+
+  // The prefix pins down far more characters, and Billing is listed last.
+  assert.ok((ruleScore(work.rules[0]!, { url }) ?? 0) > (ruleScore(billing.rules[0]!, { url }) ?? 0))
+  assert.equal(findGroupForTab([dev, work, billing], { url })?.name, 'Billing')
+  assert.equal(findGroupForTab([billing, dev, work], { url })?.name, 'Billing')
+  assert.deepEqual(rankMatchesForTab([dev, work, billing], { url }).map((m) => m.group.name), ['Billing', 'Work', 'Dev'])
+
+  // A title hit counts too, and without the keyword the broader rules decide again.
+  assert.equal(findGroupForTab([dev, billing], { url: 'https://github.com/x', title: 'Invoice #4021' })?.name, 'Billing')
+  assert.equal(findGroupForTab([dev, billing], { url: 'https://github.com/x', title: 'Pull request' })?.name, 'Dev')
+})
+
+test('a group holding a matching Contains rule is represented by it, and Contains rules still rank among themselves', () => {
+  const url = 'https://shop.example.com/invoice/refund'
+  // One group, two matching rules: the Contains one speaks for it against other groups.
+  const mixed = group('Mixed', [rule('domain', 'shop.example.com'), rule('keyword', 'refund')])
+  const plain = group('Plain', [rule('prefix', 'https://shop.example.com/invoice')])
+  assert.equal(findMatchForTab([plain, mixed], { url })?.rule.kind, 'keyword')
+
+  // Two Contains rules: the longer word wins, then list order.
+  const short = group('Short', [rule('keyword', 'invoice')])
+  const long = group('Long', [rule('keyword', 'invoice/refund')])
+  assert.equal(findGroupForTab([short, long], { url })?.name, 'Long')
+  const twin = group('Twin', [rule('keyword', 'invoice')])
+  assert.equal(findGroupForTab([short, twin], { url })?.name, 'Short')
+  assert.equal(findGroupForTab([twin, short], { url })?.name, 'Twin')
+})

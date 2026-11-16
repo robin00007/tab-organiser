@@ -1,10 +1,11 @@
 import { test } from 'node:test'
 import assert from 'node:assert/strict'
-import { looksLikeUrl, parseInput, toUrl } from '../src/lib/universal.ts'
+import { buildSiteUrl, looksLikeUrl, parseInput, toUrl } from '../src/lib/universal.ts'
 
 interface Source {
   id: string
   trigger?: string
+  aliases?: readonly string[]
 }
 
 const tabs: Source = { id: 'tab', trigger: '/tab' }
@@ -105,4 +106,37 @@ test('addresses without a scheme get one, plain http for local servers', () => {
   assert.equal(toUrl('192.168.0.1/admin'), 'http://192.168.0.1/admin')
   assert.equal(toUrl('HTTPS://Example.com/A'), 'HTTPS://Example.com/A')
   assert.equal(toUrl('http://example.com'), 'http://example.com')
+})
+
+const YOUTUBE = 'https://www.youtube.com/results?search_query={query}'
+
+test('a site search address gets the query, escaped', () => {
+  assert.equal(buildSiteUrl(YOUTUBE, 'lofi'), 'https://www.youtube.com/results?search_query=lofi')
+  assert.equal(buildSiteUrl(YOUTUBE, '  lofi hip hop  '), 'https://www.youtube.com/results?search_query=lofi%20hip%20hop')
+})
+
+test('characters that mean something in a URL cannot break out of the query', () => {
+  assert.equal(buildSiteUrl(YOUTUBE, 'c++ & rust?'), 'https://www.youtube.com/results?search_query=c%2B%2B%20%26%20rust%3F')
+  assert.equal(buildSiteUrl(YOUTUBE, 'a#b=c'), 'https://www.youtube.com/results?search_query=a%23b%3Dc')
+  // `$&` is special in String.replace; it must come through as plain text.
+  assert.equal(buildSiteUrl(YOUTUBE, '$&'), 'https://www.youtube.com/results?search_query=%24%26')
+})
+
+test('/youtube is its own command next to /tab', () => {
+  const youtube: Source = { id: 'yt', trigger: '/youtube' }
+  const both = [tabs, youtube]
+  assert.deepEqual(parse('/youtube lofi beats', both), { mode: 'search', provider: youtube, query: 'lofi beats' })
+  assert.deepEqual(parse('/y', both), { mode: 'commands', matches: [youtube] })
+  assert.deepEqual(parse('/', both), { mode: 'commands', matches: both })
+})
+
+test('an alias works like its command but is listed only once', () => {
+  const youtube: Source = { id: 'yt', trigger: '/youtube', aliases: ['/yt'] }
+  const all = [tabs, youtube]
+  assert.deepEqual(parse('/yt lofi', all), { mode: 'search', provider: youtube, query: 'lofi' })
+  assert.deepEqual(parse('/YT', all), { mode: 'search', provider: youtube, query: '' })
+  assert.deepEqual(parse('/y', all), { mode: 'commands', matches: [youtube] })
+  assert.deepEqual(parse('/', all), { mode: 'commands', matches: all })
+  // `/ytx` is neither the alias nor the command.
+  assert.deepEqual(parse('/ytx foo', all), { mode: 'search', provider: web, query: '/ytx foo' })
 })

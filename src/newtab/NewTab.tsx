@@ -18,12 +18,15 @@ export function NewTab() {
     <>
       <Background scene={scene} />
 
-      <main className="relative z-10 flex min-h-screen flex-col items-center px-6 pt-[12vh] pb-16 text-white">
+      {/* Nothing here is text to copy, so nothing is selectable: no highlight, no
+          caret when clicked. Only the search field opts back in (see SearchBar). */}
+      <main className="relative z-10 flex min-h-screen cursor-default flex-col items-center px-6 pt-[12vh] pb-16 text-white select-none">
         {/* Held back until the settings arrive, so a saved name or 24-hour clock
-            never flashes in as the default first. */}
+            never flashes in as the default first. The clock, date and greeting are
+            display-only, so the pointer passes straight through them. */}
         <header
           className={cx(
-            'flex flex-col items-center text-center transition-opacity duration-700',
+            'pointer-events-none flex flex-col items-center text-center transition-opacity duration-700',
             settings ? 'opacity-100' : 'opacity-0',
           )}
         >
