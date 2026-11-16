@@ -1,5 +1,14 @@
 import { DEFAULT_TEMPLATE_IDS, TEMPLATES_BY_ID, type Template } from './templates.ts'
-import { GROUP_COLORS, MATCH_KINDS, type Config, type Group, type Rule, type Settings } from './types.ts'
+import {
+  CLOCK_MODES,
+  GROUP_COLORS,
+  MATCH_KINDS,
+  SCENES,
+  type Config,
+  type Group,
+  type Rule,
+  type Settings,
+} from './types.ts'
 
 const STORAGE_KEY = 'tabOrganiser.config'
 export const CONFIG_VERSION = 1
@@ -12,6 +21,9 @@ export const DEFAULT_SETTINGS: Settings = {
   moveMismatched: true,
   ungroupUnmatched: false,
   mergeDuplicates: true,
+  userName: '',
+  clock: 'auto',
+  scene: 'auto',
 }
 
 export const newId = (): string => crypto.randomUUID()
@@ -62,6 +74,9 @@ const pickEnum = <T extends string>(value: unknown, allowed: readonly T[], fallb
 const pickBool = (value: unknown, fallback: boolean): boolean =>
   typeof value === 'boolean' ? value : fallback
 
+const pickString = (value: unknown, fallback: string): string =>
+  typeof value === 'string' ? value : fallback
+
 /**
  * Config can arrive from an older version of the extension or from a
  * hand-edited JSON import, so coerce every field instead of trusting the shape.
@@ -105,6 +120,9 @@ export function parseConfig(raw: unknown): Config {
       moveMismatched: pickBool(rawSettings.moveMismatched, DEFAULT_SETTINGS.moveMismatched),
       ungroupUnmatched: pickBool(rawSettings.ungroupUnmatched, DEFAULT_SETTINGS.ungroupUnmatched),
       mergeDuplicates: pickBool(rawSettings.mergeDuplicates, DEFAULT_SETTINGS.mergeDuplicates),
+      userName: pickString(rawSettings.userName, DEFAULT_SETTINGS.userName),
+      clock: pickEnum(rawSettings.clock, CLOCK_MODES, DEFAULT_SETTINGS.clock),
+      scene: pickEnum(rawSettings.scene, SCENES, DEFAULT_SETTINGS.scene),
     },
   }
 }

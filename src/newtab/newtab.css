@@ -1,0 +1,180 @@
+/* ---------------------------------------------------------------- scenes --
+
+   One palette per time of day. Every scene stays mid-to-dark on purpose: the
+   clock and greeting are white, and white needs a backdrop to push against.
+
+   --top / --bottom   the sky gradient
+   --a / --b / --c    the three drifting blobs
+   --blob-opacity     how strongly the blobs show through */
+
+.scene {
+  --blob-opacity: 0.55;
+  position: fixed;
+  inset: 0;
+  z-index: 0;
+  overflow: hidden;
+  background: linear-gradient(170deg, var(--top) 0%, var(--bottom) 100%);
+}
+
+.scene[data-scene='morning'] {
+  --top: #26356e;
+  --bottom: #d4766c;
+  --a: #ffbe73;
+  --b: #ff7aa2;
+  --c: #7b8cff;
+}
+
+.scene[data-scene='afternoon'] {
+  --top: #124a8c;
+  --bottom: #3fa6cf;
+  --a: #8fe0ff;
+  --b: #3d7bff;
+  --c: #b08cff;
+}
+
+.scene[data-scene='evening'] {
+  --top: #231245;
+  --bottom: #d4524a;
+  --a: #ff9a5c;
+  --b: #c43fa8;
+  --c: #6a4ae0;
+}
+
+.scene[data-scene='night'] {
+  --blob-opacity: 0.42;
+  --top: #050816;
+  --bottom: #19214c;
+  --a: #3a2ea0;
+  --b: #1769a8;
+  --c: #7a2f9e;
+}
+
+/* Darkens the corners so the middle, where the text sits, reads as the light. */
+.scene::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  background: radial-gradient(120% 90% at 50% 38%, transparent 42%, rgb(0 0 0 / 0.38) 100%);
+}
+
+/* ----------------------------------------------------------------- blobs -- */
+
+.scene-blob {
+  position: absolute;
+  width: 62vmax;
+  height: 62vmax;
+  border-radius: 50%;
+  opacity: var(--blob-opacity);
+  filter: blur(90px);
+  will-change: transform;
+  animation: drift 48s ease-in-out infinite alternate;
+  transition: background-color 1.5s ease;
+}
+
+.scene-blob-a {
+  background: var(--a);
+  top: -22vmax;
+  left: -18vmax;
+}
+
+.scene-blob-b {
+  background: var(--b);
+  right: -16vmax;
+  bottom: -30vmax;
+  animation-duration: 64s;
+  animation-delay: -22s;
+}
+
+.scene-blob-c {
+  background: var(--c);
+  top: 28%;
+  left: 38%;
+  width: 46vmax;
+  height: 46vmax;
+  animation-duration: 80s;
+  animation-direction: alternate-reverse;
+}
+
+@keyframes drift {
+  from {
+    transform: translate3d(0, 0, 0) scale(1);
+  }
+  to {
+    transform: translate3d(9vmax, 6vmax, 0) scale(1.18);
+  }
+}
+
+/* ----------------------------------------------------------------- stars -- */
+
+.scene-stars {
+  position: absolute;
+  inset: 0;
+  opacity: 0;
+  transition: opacity 1.5s ease;
+  animation: twinkle 7s ease-in-out infinite alternate;
+  background-image:
+    radial-gradient(1.5px 1.5px at 8% 14%, #fff, transparent 60%),
+    radial-gradient(1px 1px at 17% 46%, rgb(255 255 255 / 0.8), transparent 60%),
+    radial-gradient(1.5px 1.5px at 24% 8%, rgb(255 255 255 / 0.9), transparent 60%),
+    radial-gradient(1px 1px at 33% 31%, rgb(255 255 255 / 0.7), transparent 60%),
+    radial-gradient(2px 2px at 41% 12%, #fff, transparent 60%),
+    radial-gradient(1px 1px at 52% 24%, rgb(255 255 255 / 0.8), transparent 60%),
+    radial-gradient(1.5px 1.5px at 61% 6%, rgb(255 255 255 / 0.9), transparent 60%),
+    radial-gradient(1px 1px at 69% 38%, rgb(255 255 255 / 0.7), transparent 60%),
+    radial-gradient(1.5px 1.5px at 77% 16%, #fff, transparent 60%),
+    radial-gradient(1px 1px at 86% 52%, rgb(255 255 255 / 0.8), transparent 60%),
+    radial-gradient(2px 2px at 92% 10%, rgb(255 255 255 / 0.9), transparent 60%),
+    radial-gradient(1px 1px at 14% 72%, rgb(255 255 255 / 0.6), transparent 60%),
+    radial-gradient(1px 1px at 47% 66%, rgb(255 255 255 / 0.6), transparent 60%),
+    radial-gradient(1.5px 1.5px at 81% 78%, rgb(255 255 255 / 0.7), transparent 60%),
+    radial-gradient(1px 1px at 95% 34%, rgb(255 255 255 / 0.7), transparent 60%);
+}
+
+.scene[data-scene='night'] .scene-stars {
+  opacity: 1;
+}
+
+@keyframes twinkle {
+  from {
+    filter: brightness(0.75);
+  }
+  to {
+    filter: brightness(1.15);
+  }
+}
+
+/* ----------------------------------------------------------------- grain --
+
+   A film of noise stops the big soft gradients from banding into visible
+   steps, which they do on many displays. */
+
+.scene-grain {
+  position: absolute;
+  inset: 0;
+  opacity: 0.14;
+  mix-blend-mode: overlay;
+  pointer-events: none;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='180' height='180'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='.85' numOctaves='2' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E");
+}
+
+/* ------------------------------------------------------------------ text -- */
+
+.glow-text {
+  text-shadow:
+    0 2px 30px rgb(0 0 0 / 0.32),
+    0 1px 2px rgb(0 0 0 / 0.22);
+}
+
+/* The page paints its own backdrop and always uses light text. */
+body {
+  background: #0b1026;
+  color: #fff;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .scene-blob,
+  .scene-stars {
+    animation: none;
+  }
+}

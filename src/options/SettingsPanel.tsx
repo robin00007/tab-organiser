@@ -1,5 +1,5 @@
-import type { Scope, Settings } from '../lib/types.ts'
-import { Select, Toggle } from '../ui/components.tsx'
+import type { ClockMode, Scene, Scope, Settings } from '../lib/types.ts'
+import { Input, Select, Toggle } from '../ui/components.tsx'
 
 export function SettingsPanel({
   settings,
@@ -46,6 +46,67 @@ export function SettingsPanel({
         label="Include pinned tabs"
         description="Off by default — pinned tabs are usually deliberate."
       />
+
+      <div className="space-y-4 border-t border-zinc-100 pt-4 dark:border-zinc-800">
+        <div>
+          <h2 className="text-sm font-semibold">New tab page</h2>
+          <p className="text-xs text-zinc-500 dark:text-zinc-400">
+            The clock, greeting and search bar you see when you open a tab.
+          </p>
+        </div>
+
+        <label className="flex items-center justify-between gap-4">
+          <span>
+            <span className="block text-sm font-medium">Your name</span>
+            <span className="block text-xs text-zinc-500 dark:text-zinc-400">
+              Used in the greeting. Leave empty for just &ldquo;Good morning&rdquo;.
+            </span>
+          </span>
+          <Input
+            value={settings.userName}
+            maxLength={40}
+            placeholder="Optional"
+            onChange={(event) => onChange({ userName: event.target.value })}
+            className="w-40"
+          />
+        </label>
+
+        <label className="flex items-center justify-between gap-4">
+          <span>
+            <span className="block text-sm font-medium">Clock</span>
+            <span className="block text-xs text-zinc-500 dark:text-zinc-400">
+              Follow your browser&rsquo;s language, or force 12 or 24 hours.
+            </span>
+          </span>
+          <Select
+            value={settings.clock}
+            onChange={(event) => onChange({ clock: event.target.value as ClockMode })}
+          >
+            <option value="auto">Automatic</option>
+            <option value="12h">12-hour</option>
+            <option value="24h">24-hour</option>
+          </Select>
+        </label>
+
+        <label className="flex items-center justify-between gap-4">
+          <span>
+            <span className="block text-sm font-medium">Background</span>
+            <span className="block text-xs text-zinc-500 dark:text-zinc-400">
+              Follows the time of day, or stays on one scene.
+            </span>
+          </span>
+          <Select
+            value={settings.scene}
+            onChange={(event) => onChange({ scene: event.target.value as Scene })}
+          >
+            <option value="auto">Match the time of day</option>
+            <option value="morning">Morning</option>
+            <option value="afternoon">Afternoon</option>
+            <option value="evening">Evening</option>
+            <option value="night">Night</option>
+          </Select>
+        </label>
+      </div>
 
       <label className="flex items-center justify-between gap-4 border-t border-zinc-100 pt-4 dark:border-zinc-800">
         <span>

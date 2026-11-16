@@ -1,4 +1,5 @@
-import type { ComponentProps, ReactNode } from 'react'
+import { useState, type ComponentProps, type ReactNode } from 'react'
+import { Globe } from 'lucide-react'
 import { GROUP_COLORS, type GroupColor } from '../lib/types.ts'
 import { COLOR_SWATCH } from './colors.ts'
 
@@ -139,5 +140,15 @@ export function ColorPicker({
 
 /** "1 tab" / "2 tabs" — the only pluralisation the UI needs. */
 export const plural = (count: number, noun: string) => `${count} ${noun}${count === 1 ? '' : 's'}`
+
+/** Steps through a list and wraps at both ends, for arrow-key navigation. */
+export const wrap = (index: number, length: number) => (length === 0 ? 0 : (index + length) % length)
+
+/** Favicons come from the page, so they go missing often enough to plan for. */
+export function Favicon({ src, className = 'size-4' }: { src: string | undefined; className?: string }) {
+  const [broken, setBroken] = useState(false)
+  if (!src || broken) return <Globe className={cx('shrink-0 text-zinc-400', className)} />
+  return <img src={src} alt="" className={cx('shrink-0 rounded-sm', className)} onError={() => setBroken(true)} />
+}
 
 export { cx }

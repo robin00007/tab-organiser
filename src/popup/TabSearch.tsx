@@ -1,46 +1,13 @@
 import { useEffect, useMemo, useRef, useState, type KeyboardEvent, type ReactNode } from 'react'
-import { Globe, Search, X } from 'lucide-react'
+import { Search, X } from 'lucide-react'
 import { hostOf } from '../lib/matching.ts'
 import { searchTabs } from '../lib/search.ts'
-import { GROUP_COLORS, type GroupColor } from '../lib/types.ts'
-import { ColorDot, IconButton, Input, cx, plural } from '../ui/components.tsx'
+import { NO_GROUP, snapshotGroups, snapshotTabs, type OpenGroup } from '../lib/tabs.ts'
+import { ColorDot, Favicon, IconButton, Input, cx, plural, wrap } from '../ui/components.tsx'
 
 type Tab = chrome.tabs.Tab
 
 const MAX_RESULTS = 30
-const NO_GROUP = chrome.tabGroups?.TAB_GROUP_ID_NONE ?? -1
-
-/** Where a tab sits in Chrome right now — the badge on a result row. */
-interface OpenGroup {
-  title: string
-  color: GroupColor
-}
-
-const wrap = (index: number, length: number) => (length === 0 ? 0 : (index + length) % length)
-
-/**
- * One list of every tab, current window first. `searchTabs` breaks score ties
- * on this order, so the tab in front of you beats an identical one elsewhere.
- */
-async function snapshotTabs(): Promise<Tab[]> {
-  const [current, all] = await Promise.all([
-    chrome.tabs.query({ currentWindow: true }),
-    chrome.tabs.query({}),
-  ])
-  const seen = new Set(current.map((tab) => tab.id))
-  return [...current, ...all.filter((tab) => !seen.has(tab.id))]
-}
-
-/** Chrome types the colour loosely; narrow it before it reaches `ColorDot`. */
-const pickColor = (color: string): GroupColor =>
-  GROUP_COLORS.includes(color as GroupColor) ? (color as GroupColor) : 'grey'
-
-async function snapshotGroups(): Promise<Map<number, OpenGroup>> {
-  const groups = await chrome.tabGroups.query({})
-  return new Map(
-    groups.map((group) => [group.id, { title: group.title ?? '', color: pickColor(group.color) }]),
-  )
-}
 
 /**
  * Searches the tabs that are open right now — nothing is indexed or stored.
@@ -214,11 +181,4 @@ function Result({
       </IconButton>
     </div>
   )
-}
-
-/** Favicons come from the page, so they go missing often enough to plan for. */
-function Favicon({ src }: { src: string | undefined }) {
-  const [broken, setBroken] = useState(false)
-  if (!src || broken) return <Globe className="size-4 shrink-0 text-zinc-400" />
-  return <img src={src} alt="" className="size-4 shrink-0 rounded-sm" onError={() => setBroken(true)} />
 }

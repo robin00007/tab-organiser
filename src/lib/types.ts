@@ -49,6 +49,18 @@ export interface Group {
 
 export type Scope = 'currentWindow' | 'allWindows'
 
+/** The four parts of the day. They drive both the greeting and the background. */
+export const TIMES_OF_DAY = ['morning', 'afternoon', 'evening', 'night'] as const
+export type TimeOfDay = (typeof TIMES_OF_DAY)[number]
+
+/** `auto` follows the clock; the rest pin the new tab page to one time of day. */
+export const SCENES = ['auto', ...TIMES_OF_DAY] as const
+export type Scene = (typeof SCENES)[number]
+
+/** `auto` follows the browser's locale. */
+export const CLOCK_MODES = ['auto', '12h', '24h'] as const
+export type ClockMode = (typeof CLOCK_MODES)[number]
+
 export interface Settings {
   /** Group tabs as they are opened or navigated. */
   autoOrganize: boolean
@@ -64,6 +76,10 @@ export interface Settings {
   ungroupUnmatched: boolean
   /** Opening a page that is already open in another tab focuses and reloads that tab instead. */
   mergeDuplicates: boolean
+  /** Shown in the new tab greeting. Empty means just "Good morning". */
+  userName: string
+  clock: ClockMode
+  scene: Scene
 }
 
 export interface Config {

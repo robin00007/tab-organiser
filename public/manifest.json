@@ -4,7 +4,7 @@
   "version": "1.0.0",
   "description": "Sort your tabs into groups with your own URL rules. Everything stays in your browser.",
   "minimum_chrome_version": "120",
-  "permissions": ["tabs", "tabGroups", "storage"],
+  "permissions": ["tabs", "tabGroups", "storage", "search"],
   "background": {
     "service_worker": "service-worker.js"
   },
@@ -25,6 +25,9 @@
   },
   "omnibox": {
     "keyword": "tab"
+  },
+  "chrome_url_overrides": {
+    "newtab": "newtab/index.html"
   },
   "options_ui": {
     "page": "options/index.html",

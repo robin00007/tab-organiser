@@ -75,10 +75,61 @@ Three ways to search the tabs you already have open, by title or address:
   a suggestion focuses that tab, pulling its window forward if it is in another
   one.
 
+- On the **new tab page**, type `/tab` and then your query (see below).
+
 Every word you type has to land somewhere, so adding a word narrows the list.
 Only tabs that are open right now are searched — nothing is indexed or kept, and
 browser pages like `chrome://extensions` are findable even though they are never
 organised.
+
+### New tab page
+
+Opening a tab shows a big clock, a time-of-day greeting and one search bar, over
+a background that changes with the hour (morning, afternoon, evening, night). The
+backdrop is drawn in CSS — no images, no network.
+
+What you type decides what is searched:
+
+| Type | What happens |
+| --- | --- |
+| `some words` | Search the web with **your own** default search engine |
+| `github.com`, `localhost:3000` | An **Open** row comes first; the web search is one arrow key down |
+| `/tab xyz` | Search your open tabs. `Enter` jumps to one and closes the blank tab you came from |
+| `/tab` | List every open tab, current window first — a quick switcher |
+| `/` | List the available commands; `Tab` or `Enter` completes one |
+
+An unknown `/something` is simply searched for as typed, so nothing is swallowed.
+Typing a page that is already open merges into the tab you already have (see
+*Duplicate tabs*). Arrow keys move, `Esc` clears.
+
+Set your name, a 12/24-hour clock and a fixed background scene under **Settings →
+New tab page**.
+
+Things to know before installing:
+
+- It **replaces Chrome's new tab page**. An extension cannot hand it back
+  mid-session; disable or remove the extension to get Chrome's own page again.
+  Chrome allows one extension to own the new tab, so if you have another new-tab
+  extension the most recently installed one wins.
+- The `search` permission is what lets the bar use your default search engine
+  instead of one hard-coded here.
+- The search bar asks for keyboard focus as the page opens. If Chrome leaves the
+  cursor in the address bar instead, click the bar, or use the `tab` address-bar
+  keyword for tab search.
+
+#### Adding a search source
+
+Every source is one object that satisfies `Provider` in
+[`src/lib/universal.ts`](src/lib/universal.ts). To add, say, bookmarks:
+
+1. Create `src/newtab/providers/bookmarks.ts` exporting a `Provider` with
+   `trigger: '/bm'`, a `label`, a `hint`, and a `search(query)` that returns
+   `Result` rows — each row carries its own `activate()`, so the search bar never
+   needs to know what kind of thing it is showing.
+2. Add it to `COMMANDS` in `src/newtab/providers/index.ts`. It then appears in the
+   `/` command list and in the hint under the bar.
+3. If it needs a new permission (bookmarks and history both do), add it to the
+   manifest and the permissions table below.
 
 ### Duplicate tabs
 
@@ -133,6 +184,7 @@ are already open. It is also the first thing the onboarding banner offers you.
 - **Auto-organise new tabs** — group tabs as they load. Off shows an `off` badge
   on the toolbar icon.
 - **Organise on browser startup** — sweep restored tabs when Chrome opens.
+- **New tab page** — your name, a 12/24-hour clock and a fixed background scene.
 - **Merge duplicate tabs** — opening a page that is already open closes the new
   tab and reloads the existing one. On by default.
 - **Move tabs that no longer fit** — a tab in one of your groups that navigates
@@ -147,7 +199,7 @@ Groups, rules and settings export to a JSON file from the **Backup** tab.
 ```bash
 npm run build       # icons + typecheck + bundle to dist/
 npm run typecheck   # tsc --noEmit
-npm run test        # matching-engine, tab-search and duplicate-detection unit tests
+npm run test        # matching, tab search, duplicates, new-tab parsing and clock unit tests
 npm run package     # build, then zip dist/ for upload
 ```
 
@@ -157,13 +209,15 @@ After a rebuild, hit the reload button on the extension card in
 ### Layout
 
 ```
-src/lib/          matching engine, tab search, duplicate merging, storage schema, Chrome-group orchestration
+src/lib/          matching engine, tab search, duplicate merging, universal-search parsing,
+                  greeting and clock, storage schema, Chrome-group orchestration
 src/background/   MV3 service worker — events, debouncing, message handling
 src/popup/        toolbar popup
+src/newtab/       new tab page — clock, background, search bar and its providers/
 src/options/      full settings page
 src/ui/           shared components, theme, config hook
 scripts/          generates the PNG icons from code
-tests/            unit tests for the matching engine, tab search and duplicate detection (node --test)
+tests/            unit tests for the pure logic in src/lib (node --test)
 ```
 
 The pages and the service worker are bundled separately: the worker is emitted
@@ -194,6 +248,16 @@ as one self-contained script so it never depends on chunk resolution at runtime.
   service worker is recycled mid-load the tab is simply not merged.
 - **Merges are serialised.** Two identical tabs opened together would each see
   the other as the original and both close, so merges run through one queue.
+- **Search sources are plugins.** The bar parses what you typed, picks a
+  `Provider`, and shows whatever `Result` rows it returns; each row knows how to
+  activate itself. The parsing and URL heuristics are pure functions in
+  `src/lib/universal.ts`, so they are unit-tested without a browser, while
+  everything that touches Chrome lives in `src/newtab/providers/`.
+- **The new tab navigates itself rather than opening another.** That lets the
+  duplicate merge recognise a page that is already open with no extra code.
+- **The clock ticks on the minute, not the second.** No seconds are shown, so a
+  1 s interval would be 59 wasted renders in 60; the time is re-read when the tab
+  becomes visible because browsers throttle timers in background tabs.
 - **Storage is `local`, not `sync`.** `storage.sync` has an 8 KB per-item cap,
   which a few hundred rules would blow through. JSON export covers moving
   between machines.
@@ -205,6 +269,7 @@ as one self-contained script so it never depends on chunk resolution at runtime.
 | `tabs` | read tab URLs and titles to match them against your rules, and to search them |
 | `tabGroups` | create groups and set their title, colour and collapsed state |
 | `storage` | keep your groups and settings in this browser profile |
+| `search` | run a web search from the new tab page with your default search engine |
 
 No host permissions, no network access. Nothing leaves the browser.
 
